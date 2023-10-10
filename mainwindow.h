@@ -26,7 +26,16 @@ private slots:
 
     void on_pushButton_4_clicked();
 
+    void on_comboBox_currentIndexChanged(int index);
+
+    void on_radioButton_clicked();
+
+    void on_radioButton_2_clicked();
+
+    void on_radioButton_3_clicked();
+
 private:
+    fraba_posital_encoder* encoder;
     Ui::MainWindow *ui;
 };
 #endif // MAINWINDOW_H

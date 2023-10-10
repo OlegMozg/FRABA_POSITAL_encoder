@@ -3,7 +3,6 @@
 #include <linux/can.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-//#include <linux/can/netlink.h>
 #include <QString>
 #include <string>
 
@@ -63,3 +62,5 @@ void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_type,bool 
     if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0)
         throw("Socket can't be bind with can address family");
 }
+
+
