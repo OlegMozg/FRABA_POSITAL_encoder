@@ -1,5 +1,6 @@
 QT       += core gui
 QT       += network
+QT       +=serialbus
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -10,10 +11,11 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    socket_usage.cpp
 
 HEADERS += \
-    canopen.h \
+    canopen_local.h \
     fraba_encoder.h \
     mainwindow.h
 
@@ -24,3 +26,8 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    qrc.qrc
+
+LIBS+=-lsocketcan

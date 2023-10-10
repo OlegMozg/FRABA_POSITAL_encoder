@@ -8,4 +8,5 @@ enum encoder_status{
 };
 
 
+
 #endif // FRABA_ENCODER_H
