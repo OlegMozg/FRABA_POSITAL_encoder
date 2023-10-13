@@ -62,8 +62,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_10->setText("Status:");
     ui->label_11->setText("");
     ui->pushButton_6->setText("Reset");
-    ui->label_12->setText("Baudrate");
+    ui->label_12->setText("Baudrate:");
     ui->label_13->setText("");
+    ui->label_14->setText("Resolution:");
+    ui->label_15->setText("");
 
     QStringList list;
     for(auto el:velocity_to_screen)
@@ -274,36 +276,65 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     uint32_t FC_MASK=0x00000780;
     //новые настройки можно применять только если они отличаются от старых
     //1.node number
-    if(ui->spinBox_2->value()!=ui->label_7->text().toInt())
+    int value=ui->spinBox_2->value();
+    if(value!=ui->label_7->text().toInt())
     {
-        CODT::cannode NN=static_cast<CODT::cannode>(ui->spinBox_2->value());
+        CODT::cannode NN=static_cast<CODT::cannode>(value);
         OpenData open_data;
-        open_data.command=
+        open_data.command=encoder->set_param;
+        open_data.index=0x3000;
+        open_data.subindex=0x0;
+        CODT::canbyte data[1];
+        data[0]=value;
+        uint8_t len=5;
+        send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data,len,true);
+        struct can_frame node_frame;
+        try{
+            node_frame=recv_SDO_msg(socket_handle);
+        }
+        catch(...){}
+        if(((node_frame.can_id)&FC_MASK)==func_codes::SDO_rx){
+            //все ок
+        }
     }
     //2.baudrate
-    if((ui->comboBox->itemText(ui->comboBox->currentIndex())).toUInt()!=ui->label_13->text().toUInt())
+    int combo_index=ui->comboBox->currentIndex();
+    if((ui->comboBox->itemText(combo_index)).toUInt()!=ui->label_13->text().toUInt())
     {
-        int index=ui->comboBox->currentIndex();
         OpenData open_data;
         CODT::canbyte data[1];
-        data[0]=rates.find(index)->second;
+        data[0]=rates.find(combo_index)->second;
         open_data.command=encoder->set_param;
         open_data.index=0x3001;
         open_data.subindex=0x0;
         uint8_t len=5;
         send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data,len);
-        int nbytes=0;
         struct can_frame baud_frame;
-        while(nbytes==0)
-            nbytes=recv(socket_handle,&baud_frame,sizeof(struct can_frame),0);
         try{
-            check_data(nbytes);
+           baud_frame=recv_SDO_msg(socket_handle);
         }
         catch(...){}
         if(((baud_frame.can_id)& FC_MASK)==func_codes::SDO_rx){
             //все ок
         }
+    }
+    //3.Resolution
+    int combo_index_2=ui->comboBox_2->currentIndex();
+    if((ui->comboBox_2->itemText(combo_index_2)).toDouble()!=ui->label_15->text().toDouble()){
+        OpenData open_data;
+        BYTES bytes;
+        find_low_and_high_byte(resols.find(com,bytes);//???
+        CODT::canbyte data[2];
+        data[0]=bytes.low;
+        data[1]=bytes.high;
+        open_data.index=0x6000;
+        open_data.subindex=0x0;
+        uint8_t len=6;
+        send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data,len);
 
     }
+
 }
+
+
 

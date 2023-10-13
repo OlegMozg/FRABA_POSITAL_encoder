@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <socket_usage.h>
 
 namespace CODT
 {
@@ -66,6 +67,18 @@ static canid_t construct_can_id(const COB_ID& id,int RTR/*mask*/,int EFF/*mask*/
     return can_id;
 }
 
+struct BYTES{
+    uint8_t low;
+    uint8_t high;
+};
+
+static void find_low_and_high_byte(uint16_t val,BYTES& bytes){
+    std::uint16_t low_mask=0x00FF;
+    std::uint16_t high_mask=0xFF00;
+    bytes.low=static_cast<uint8_t>(val&low_mask);
+    bytes.high=static_cast<uint8_t>((val&high_mask)>>8);
+}
+
 static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* data,unsigned int rtr_mask, unsigned int eff_mask,std::uint8_t data_length=8)
 {
     COB_ID ID;
@@ -73,15 +86,14 @@ static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* 
     ID.NN=NN;
     canid_t can_id=construct_can_id(ID,rtr_mask,eff_mask);
     struct can_frame can_frame;
-
-    std::uint16_t low_mask=0x00FF;
-    std::uint16_t high_mask=0xFF00;
-
     can_frame.can_id=can_id;
     can_frame.len=8;
     can_frame.data[0]=data->command;
-    can_frame.data[1]=static_cast<CODT::canbyte>((data->index)&low_mask);
-    can_frame.data[2]=static_cast<CODT::canbyte>(((data->index)&high_mask)>>8);
+
+    BYTES bytes;
+    find_low_and_high_byte(data->index,bytes);
+    can_frame.data[1]=bytes.low;
+    can_frame.data[2]=bytes.high;
     can_frame.data[3]=data->subindex;
     try
     {
@@ -122,8 +134,13 @@ static void send_SDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* 
         throw("Incorrect node number");
 }
 
-static void recv_SDO_msg(int handle){
+static can_frame recv_SDO_msg(int handle){
     struct can_frame sdo_frame;
+    int nbytes=0;
+    while(nbytes==0)
+        nbytes=recv(handle,&sdo_frame,sizeof(struct can_frame),0);
+    check_data(nbytes);
+    return sdo_frame;
 }
 
 static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* data,int rtr_mask=0x40000000)
