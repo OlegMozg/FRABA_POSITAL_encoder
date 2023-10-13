@@ -26,6 +26,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_4->setFont(font);
     ui->label_5->setFont(font);
     ui->label_6->setFont(font);
+    ui->label_8->setFont(font);
+    ui->label_10->setFont(font);
+    ui->label_12->setFont(font);
+    ui->label_14->setFont(font);
     ui->radioButton->setFont(font);
     ui->radioButton_2->setFont(font);
     ui->radioButton_3->setFont(font);
@@ -37,7 +41,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label->setText("Work mode:");
     ui->pushButton_2->setText("Pre-Operational");
     ui->pushButton_3->setText("Operational");
-   // ui->pushButton_4->setText("Stopped");
     ui->pushButton_5->setText("Configure");
     ui->label_2->setText("Baudrate:");
     ui->label_3->setText("Transmission mode:");
@@ -56,7 +59,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->spinBox->setEnabled(false);
     ui->spinBox_2->setMinimum(encoder->min_node_num);
     ui->spinBox_2->setMaximum(encoder->max_node_num);
-    ui->label_9->setText("Current values:");
     ui->label_8->setText("Node number:");
     ui->label_7->setText("");
     ui->label_10->setText("Status:");
@@ -66,6 +68,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_13->setText("");
     ui->label_14->setText("Resolution:");
     ui->label_15->setText("");
+    ui->groupBox_2->setTitle("Current values");
+    ui->pushButton_4->setText("Apply");
+    ui->groupBox_3->setTitle("Data transmission");
+
 
     QStringList list;
     for(auto el:velocity_to_screen)
@@ -193,7 +199,7 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
     }
     catch(...)
     {
-        //
+        //do smth
     }
 
     uint32_t FC_MASK=0x00000780;
@@ -215,12 +221,7 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
         nbytes=0;
         try
         {
-            while(1){
-                nbytes=recv(socket_handle,&baud_frame,sizeof(struct can_frame),0);
-                if(nbytes!=0)
-                    break;
-            }
-            check_data(nbytes);
+            baud_frame=recv_SDO_msg(socket_handle);
         }
         catch(...)
         {
@@ -273,7 +274,9 @@ void MainWindow::on_pushButton_6_clicked()//reset encoder
 
 void MainWindow::on_pushButton_5_clicked()//сконфигурировать датчик с новыми настройками
 {
+    ui->pushButton_5->setHidden(true);
     uint32_t FC_MASK=0x00000780;
+    uint32_t NN_MASK=0x7F;
     //новые настройки можно применять только если они отличаются от старых
     //1.node number
     int value=ui->spinBox_2->value();
@@ -303,10 +306,10 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     {
         OpenData open_data;
         CODT::canbyte data[1];
-        data[0]=rates.find(combo_index)->second;
+        data[0]=rates[combo_index];//тоже с 0
         open_data.command=encoder->set_param;
         open_data.index=0x3001;
-        open_data.subindex=0x0;
+        open_data.subindex=0x00;
         uint8_t len=5;
         send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data,len);
         struct can_frame baud_frame;
@@ -320,21 +323,58 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     }
     //3.Resolution
     int combo_index_2=ui->comboBox_2->currentIndex();
-    if((ui->comboBox_2->itemText(combo_index_2)).toDouble()!=ui->label_15->text().toDouble()){
+    double choosen_resolution=(ui->comboBox_2->itemText(combo_index_2)).toDouble();
+    if(choosen_resolution!=ui->label_15->text().toDouble()){
         OpenData open_data;
         BYTES bytes;
-        find_low_and_high_byte(resols.find(com,bytes);//???
+        find_low_and_high_byte(resolutions_dict[choosen_resolution],bytes);
         CODT::canbyte data[2];
         data[0]=bytes.low;
         data[1]=bytes.high;
+        open_data.command=encoder->set_param;
         open_data.index=0x6000;
-        open_data.subindex=0x0;
+        open_data.subindex=0x00;
         uint8_t len=6;
         send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data,len);
+        struct can_frame res_frame;
+        try{
+           res_frame=recv_SDO_msg(socket_handle);
+        }
+        catch(...){}
+        if(((res_frame.can_id)&FC_MASK)==func_codes::SDO_rx){
+           //все ок
+        }
+    }
+    //save in flash-memory
+    OpenData open_data;
+    CODT::canbyte data[4];
+    data[0]=0x55;
+    data[1]=0xAA;
+    data[2]=0xAA;
+    data[3]=0x55;
+    open_data.command=encoder->set_param;
+    open_data.index=0x2300;
+    open_data.subindex=0x00;
+    send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data);
+    //выключить питание или нет????
+    QMessageBox msg;
+    msg.setText("Выключить питание!");
+    msg.exec();
+    struct can_frame boot_frame;
+    try{
+        boot_frame=recv_SDO_msg(socket_handle);
 
     }
-
+    catch(...){}
+    //включение питания
+    if((((boot_frame.can_id)&FC_MASK)==0x700) && (((boot_frame.can_id)&NN_MASK)==value)){
+        encoder->node_num=value;
+        encoder->status=encoder->Pre_Operational;
+        encoder->resolution=choosen_resolution;
+        encoder->boudrate=rates[combo_index];
+        emit status_pre_operational();
+    }
+    ui->pushButton_5->setHidden(false);//снова можно конфигурировать датчик
 }
-
 
 

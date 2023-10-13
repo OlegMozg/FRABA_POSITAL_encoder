@@ -10,7 +10,7 @@ typedef std::map<std::uint16_t,std::uint8_t> can_rates;
 
 struct SDO_telegram
 {
-    uint8_t status;
+    uint8_t status                :1;
     uint32_t abort_code;
 };
 

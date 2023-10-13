@@ -55,6 +55,7 @@ signals:
 private:
     const QStringList velocity_to_screen={"20","50","100","125","250","500","800","1000"};
     const QStringList resolutions={"0.01","0.1","1"};
+
     std::map<int,uint8_t> rates={
         {0,boudrates::_20},
         {1,boudrates::_50},
@@ -64,6 +65,13 @@ private:
         {5,boudrates::_500},
         {6,boudrates::_800},
         {7,boudrates::_1000}
+    };
+
+    std::map<double,uint16_t> resolutions_dict={
+        {0.001,fraba_posital_encoder::_0_001},
+        {0.01,fraba_posital_encoder::_0_01},
+        {0.1,fraba_posital_encoder::_0_1},
+        {1,fraba_posital_encoder::_1}
     };
 
     fraba_posital_encoder* encoder;

@@ -19,7 +19,7 @@ struct SOCKET{
     int protocol;
 };
 
-int create_can_socket(can_socket_type sock_type){
+static int create_can_socket(can_socket_type sock_type){
     SOCKET sockt;
     sockt.domain=PF_CAN;
     switch(sock_type) {
@@ -43,7 +43,7 @@ int create_can_socket(can_socket_type sock_type){
 
 }
 
-void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_type,bool bind_to_all=false){
+static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_type,bool bind_to_all=false){
     struct sockaddr_can addr;
     struct ifreq ifr;
     int handle=0;
