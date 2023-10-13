@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <fraba_encoder.h>
 #include <canopen_local.h>
+#include <map>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -34,8 +35,41 @@ private slots:
 
     void on_radioButton_3_clicked();
 
+    void program_run(int);
+
+    void is_stopped();
+    void is_pre_operational();
+    void is_operational();
+
+    void on_pushButton_6_clicked();
+
+    void on_pushButton_5_clicked();
+
+public:
+signals:
+    void start_program(int);
+    void status_stopped();
+    void status_pre_operational();
+    void status_operational();
+
 private:
+    const QStringList velocity_to_screen={"20","50","100","125","250","500","800","1000"};
+    const QStringList resolutions={"0.01","0.1","1"};
+    std::map<int,uint8_t> rates={
+        {0,boudrates::_20},
+        {1,boudrates::_50},
+        {2,boudrates::_100},
+        {3,boudrates::_125},
+        {4,boudrates::_250},
+        {5,boudrates::_500},
+        {6,boudrates::_800},
+        {7,boudrates::_1000}
+    };
+
     fraba_posital_encoder* encoder;
+    const char* if_name="can0";
+    int socket_handle;
+
     Ui::MainWindow *ui;
 };
 #endif // MAINWINDOW_H

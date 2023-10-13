@@ -11,13 +11,13 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp \
-    socket_usage.cpp
+    mainwindow.cpp
 
 HEADERS += \
     canopen_local.h \
     fraba_encoder.h \
-    mainwindow.h
+    mainwindow.h \
+    socket_usage.h
 
 FORMS += \
     mainwindow.ui

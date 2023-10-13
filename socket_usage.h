@@ -1,3 +1,5 @@
+#ifndef SOCKET_USAGE_H
+#define SOCKET_USAGE_H
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/can.h>
@@ -38,6 +40,7 @@ int create_can_socket(can_socket_type sock_type){
         throw("Socket is not created");
     else
         return handle;
+
 }
 
 void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_type,bool bind_to_all=false){
@@ -61,6 +64,14 @@ void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_type,bool 
 
     if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0)
         throw("Socket can't be bind with can address family");
+
 }
 
+static void check_data(int nbytes){
+    if(nbytes<1)
+        throw "error";
+    if(nbytes<sizeof(struct can_frame))
+        throw "encomplete frame";
+}
 
+#endif // SOCKET_USAGE_H
