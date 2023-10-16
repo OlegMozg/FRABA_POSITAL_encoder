@@ -5,6 +5,7 @@
 #include <fraba_encoder.h>
 #include <canopen_local.h>
 #include <map>
+#include <exception>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -25,9 +26,6 @@ private slots:
 
     void on_pushButton_3_clicked();
 
-    void on_pushButton_4_clicked();
-
-    void on_comboBox_currentIndexChanged(int index);
 
     void on_radioButton_clicked();
 
@@ -53,18 +51,19 @@ signals:
     void status_operational();
 
 private:
+    Ui::MainWindow *ui;
     const QStringList velocity_to_screen={"20","50","100","125","250","500","800","1000"};
     const QStringList resolutions={"0.01","0.1","1"};
 
-    std::map<int,uint8_t> rates={
-        {0,boudrates::_20},
-        {1,boudrates::_50},
-        {2,boudrates::_100},
-        {3,boudrates::_125},
-        {4,boudrates::_250},
-        {5,boudrates::_500},
-        {6,boudrates::_800},
-        {7,boudrates::_1000}
+    std::map<QString,uint8_t> rates={
+        {"20",boudrates::_20},
+        {"50",boudrates::_50},
+        {"100",boudrates::_100},
+        {"125",boudrates::_125},
+        {"250",boudrates::_250},
+        {"500",boudrates::_500},
+        {"800",boudrates::_800},
+        {"1000",boudrates::_1000}
     };
 
     std::map<double,uint16_t> resolutions_dict={
@@ -74,10 +73,14 @@ private:
         {1,fraba_posital_encoder::_1}
     };
 
+    QString password;
     fraba_posital_encoder* encoder;
     const char* if_name="can0";
     int socket_handle;
 
-    Ui::MainWindow *ui;
+
+    void ask_for_password();
+    QString executeSudoCommand(const QString& command);
+    void reconfigure_interface(const QString& rate);
 };
 #endif // MAINWINDOW_H

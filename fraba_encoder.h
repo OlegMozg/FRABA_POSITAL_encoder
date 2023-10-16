@@ -3,6 +3,8 @@
 #include <map>
 #include <iostream>
 #include <QString>
+#include <canopen_local.h>
+#include <exception.h>
 
 
 typedef std::map<std::uint16_t,std::uint8_t> can_rates;
@@ -32,12 +34,21 @@ struct fraba_posital_encoder
     uint16_t cycle_time_value;
     uint16_t resolution;
     uint8_t boudrate              :4;
+    QString default_rate;
     uint8_t status;
     uint8_t transmit_mode;
 
 
     SDO_telegram sdo;
     PDO_telegram pdo;
+
+    fraba_posital_encoder(){
+        default_rate="20000";
+        min_node_num=node_number::min_number;
+        max_node_num=node_number::max_number;
+        min_cycle_time=period_settings::MIN_period;
+        max_cycle_time=period_settings::MAX_period;
+    }
 
     enum Work_Mode:uint8_t
     {

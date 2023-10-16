@@ -15,6 +15,7 @@ SOURCES += \
 
 HEADERS += \
     canopen_local.h \
+    exception.h \
     fraba_encoder.h \
     mainwindow.h \
     socket_usage.h

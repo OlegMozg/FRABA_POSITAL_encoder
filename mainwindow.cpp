@@ -5,16 +5,17 @@
 #include <sys/socket.h>
 #include <linux/can.h>
 #include <QMessageBox>
+#include <QInputDialog>
+#include <QProcess>
+#include <unistd.h>
+#include <exception.h>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
     encoder=new fraba_posital_encoder();
-    encoder->min_node_num=node_number::min_number;
-    encoder->max_node_num=node_number::max_number;
-    encoder->min_cycle_time=encoder->MIN_period;
-    encoder->max_cycle_time=encoder->MAX_period;
     encoder->status=encoder->Stopped;
     emit status_stopped();
 
@@ -74,8 +75,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     QStringList list;
-    for(auto el:velocity_to_screen)
-        list.append(el+" KBit/s");
+    for(auto el:velocity_to_screen){
+        list.append(el+" Kbit/s");
+    }
     ui->comboBox->addItems(list);
     ui->comboBox->show();
     list.clear();
@@ -93,11 +95,13 @@ MainWindow::MainWindow(QWidget *parent)
     socket_handle=handle;
     bind_can_sock_with_ifs(if_name,can_socket_type::RAW_SOCKET);
     emit start_program(socket_handle);
+
+    password="";
 }
 
 MainWindow::~MainWindow()//деструктор окна
 {
-
+    ::close(socket_handle);
     delete encoder;
     delete ui;
 }
@@ -113,15 +117,27 @@ void MainWindow::on_pushButton_2_clicked()//перейти в pre-operational
 {
     QMessageBox msg;
     uint8_t current_nn=static_cast<uint8_t>(ui->label_7->text().toUInt());
-    if(current_nn>=node_number::min_number && current_nn<=node_number::max_number && current_nn!=0)
+  try
     {
         send_rule_msg(socket_handle,func_codes::NMT,current_nn,encoder->set_pre_operational);
     }
-    else{
-        msg.setText("Некоректный номер узла");
+  catch(const exception& ex)
+    {
+        qDebug()<<"Исключение с кодом "<<ex.code<<":"<<ex.description;
+        QMessageBox msg;
+        msg.setText(ex.description);
         msg.exec();
-        return;
+        if(ex.is_fatal){
+            exit(ex.code);
+        }
+        else
+            return;
     }
+    catch(const std::exception& ex){
+        qDebug()<<ex.what();
+        exit(unknown);
+    }
+
     emit status_pre_operational();
 }
 
@@ -130,30 +146,28 @@ void MainWindow::on_pushButton_3_clicked()//перейти в operational
 {
     QMessageBox msg;
     uint8_t current_nn=static_cast<uint8_t>(ui->label_7->text().toUInt());
-    if(current_nn>=node_number::min_number && current_nn<=node_number::max_number && current_nn!=0)
+    try
     {
         send_rule_msg(socket_handle,func_codes::NMT,current_nn,encoder->set_operational);
     }
-    else{
-        msg.setText("Некоректный номер узла");
+    catch(const exception& ex)
+    {
+        qDebug()<<"Исключение с кодом "<<ex.code<<":"<<ex.description;
+        QMessageBox msg;
+        msg.setText(ex.description);
         msg.exec();
-        return;
+        if(ex.is_fatal){
+            exit(ex.code);
+        }
+        else
+            return;
     }
+    catch(const std::exception& ex){
+        qDebug()<<ex.what();
+        exit(unknown);
+    }
+
     emit status_operational();
-}
-
-
-
-
-void MainWindow::on_pushButton_4_clicked()//перейти в stopped
-{
-//датчик не включен
-}
-
-
-void MainWindow::on_comboBox_currentIndexChanged(int index)//выбор скорости
-{
-
 }
 
 
@@ -167,7 +181,7 @@ void MainWindow::on_radioButton_clicked()//cyclic
 }
 
 
-void MainWindow::on_radioButton_2_clicked()//sync
+void MainWindow::on_radioButton_2_clicked()//sync//temporary is not available
 {
     ui->spinBox->setEnabled(false);
     if(ui->radioButton_2->isChecked()){
@@ -186,8 +200,30 @@ void MainWindow::on_radioButton_3_clicked()//polled
     }
 }
 
-void MainWindow::program_run(int handle)//пытаемся получить boot-up msg
+void MainWindow::program_run(int handle)//пытаемся получить boot-up msg и задать скорость can-контроллеру
 {
+    try
+    {
+        QString rate=(encoder->default_rate);
+        reconfigure_interface(rate);
+    }
+    catch (const exception& ex)
+    {
+        qDebug()<<"Исключение с кодом "<<ex.code<<":"<<ex.description;
+        QMessageBox msg;
+        msg.setText(ex.description);
+        msg.exec();
+        if(ex.is_fatal){
+            exit(ex.code);
+        }
+        else
+            return;
+    }
+    catch (const std::exception& ex){
+        qDebug()<<ex.what();
+        exit(unknown);
+    }
+
     QMessageBox msg;
     struct can_frame boot_up_frame;
     int nbytes=0;
@@ -195,7 +231,7 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
         while(nbytes==0){
             nbytes=recv(handle,&boot_up_frame,sizeof(struct can_frame),0);
         }
-        check_data(nbytes);
+        check_data_SDO(nbytes);
     }
     catch(...)
     {
@@ -218,16 +254,12 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
         data.SP_data_buff=nullptr;
         send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&data,4);//хотим узнать скорость передачи
         struct can_frame baud_frame;
-        nbytes=0;
         try
         {
             baud_frame=recv_SDO_msg(socket_handle);
         }
-        catch(...)
-        {
-        //
-        }
-        if(((baud_frame.can_id)&FC_MASK)==func_codes::SDO_rx){
+        catch(...){}
+        if((((baud_frame.can_id)&FC_MASK)==func_codes::SDO_rx) && (baud_frame.data[0]==encoder->recv_param_u8)){
             encoder->boudrate=baud_frame.data[4];
             ui->label_13->setText(QString::number(encoder->boudrate));
         }
@@ -282,7 +314,6 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     int value=ui->spinBox_2->value();
     if(value!=ui->label_7->text().toInt())
     {
-        CODT::cannode NN=static_cast<CODT::cannode>(value);
         OpenData open_data;
         open_data.command=encoder->set_param;
         open_data.index=0x3000;
@@ -306,7 +337,7 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     {
         OpenData open_data;
         CODT::canbyte data[1];
-        data[0]=rates[combo_index];//тоже с 0
+        data[0]=rates[ui->comboBox->itemText(combo_index)];
         open_data.command=encoder->set_param;
         open_data.index=0x3001;
         open_data.subindex=0x00;
@@ -346,6 +377,7 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
         }
     }
     //save in flash-memory
+    QString out,command;
     OpenData open_data;
     CODT::canbyte data[4];
     data[0]=0x55;
@@ -356,25 +388,125 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     open_data.index=0x2300;
     open_data.subindex=0x00;
     send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&open_data);
+    //переключить на новую скорость CAN-контроллер и принять 2 мистических сообщения???
+    QString rate=ui->comboBox->itemText(combo_index)+"000";
+    try
+    {
+        reconfigure_interface(rate);
+    }
+    catch(...){}
+    struct can_frame flash_answer_1, flash_answer_2;
+
+    try{
+        flash_answer_1=recv_SDO_msg(socket_handle);
+       /// if((((flash_answer_1.can_id)&FC_MASK)==0x80) && flash_answer_1.len==1){
+       //   qDebug()<<"Мистическое сообщение 1 принято";
+           qDebug()<<"Мистическое сообщение 1:"<<"can_id:"<<flash_answer_1.can_id<<"len:"<<flash_answer_1.len;
+
+        flash_answer_2=recv_SDO_msg(socket_handle);
+      //  if((((flash_answer_1.can_id)&FC_MASK)==0x80) && flash_answer_1.len==8){
+      //     qDebug()<<"Мистическое сообщение 2 принято";
+       // }
+
+        qDebug()<<"Мистическое сообщение 2:"<<"can_id:"<<flash_answer_2.can_id<<"len:"<<flash_answer_2.len;
+    }
+    catch(...){}
     //выключить питание или нет????
     QMessageBox msg;
-    msg.setText("Выключить питание!");
-    msg.exec();
+    msg.setText("Снимите питание с датчика и нажмите ОК!");
+    int code=msg.exec();
+    if(code!=0x400){//не ок                                            //отладка
+        OpenData data;
+        data.command=encoder->get_param;
+        data.index=0x3001;
+        data.subindex=0x0;
+        send_SDO_msg(socket_handle,func_codes::SDO_tx,value,&data,4);
+        struct can_frame baud_frame;
+
+        try
+        {
+           baud_frame=recv_SDO_msg(socket_handle);
+        }
+        catch(...){}
+        if((((baud_frame.can_id)&FC_MASK)==func_codes::SDO_rx) && (baud_frame.data[0]==encoder->recv_param_u8)){
+           qDebug()<<"Питание не снято, но новые параметры установлены";
+           qDebug()<<"Реальная скорость"<<baud_frame.data[4];
+        }
+    }
+    //включение питания
     struct can_frame boot_frame;
     try{
         boot_frame=recv_SDO_msg(socket_handle);
-
     }
     catch(...){}
-    //включение питания
+
     if((((boot_frame.can_id)&FC_MASK)==0x700) && (((boot_frame.can_id)&NN_MASK)==value)){
         encoder->node_num=value;
         encoder->status=encoder->Pre_Operational;
         encoder->resolution=choosen_resolution;
-        encoder->boudrate=rates[combo_index];
+        encoder->boudrate=rates[ui->comboBox->itemText(combo_index)];
+        qDebug()<<"boot frame получен и конфигурация завершена";
         emit status_pre_operational();
     }
     ui->pushButton_5->setHidden(false);//снова можно конфигурировать датчик
 }
 
 
+
+void MainWindow::ask_for_password(){
+    bool ok;
+    QString password=QInputDialog::getText(this,"Доступ к контроллеру","Введите пароль:",QLineEdit::Password,"",&ok,Qt::Window);
+    if(ok && password!=""){
+        this->password=password;
+        return;
+    }
+    else{
+        QMessageBox MSG;
+        MSG.setText("Доступ запрещен.Повторите попытку или воспользуйтесь терминалом!");
+        MSG.exec();
+        this->password="";
+    }
+}
+
+QString MainWindow::executeSudoCommand(const QString& command){
+
+    if(password=="")
+        ask_for_password();
+
+    QStringList sudoArgs;
+    sudoArgs<<"-k"<<"-S"<<"sh"<<"-c"<<command;
+    QProcess process;
+    process.setProcessChannelMode(QProcess::MergedChannels);
+    process.start("sudo",sudoArgs);
+    process.write(password.toUtf8());
+    process.closeWriteChannel();
+    process.waitForFinished();
+    QString output=process.readAll();
+    return output;
+}
+
+void MainWindow::reconfigure_interface(const QString& rate){
+    QString command,out;
+    command="ip link set can0 down";
+    out=executeSudoCommand(command);
+    if(out.contains("cannot find device",Qt::CaseInsensitive))
+    {
+        exception ex;
+        ex.code=if_not_found;
+        ex.description="CAN-устройство не обнаружено";
+        ex.is_fatal=true;
+        throw(ex);
+    }
+
+    command="ip link set can0 up type can bitrate "+rate+" loopback off";
+    out=executeSudoCommand(command);
+    if(out.contains("cannot find device",Qt::CaseInsensitive))
+    {
+        exception ex;
+        ex.code=if_not_found;
+        ex.description="CAN-устройство не обнаружено";
+        ex.is_fatal=true;
+        throw(ex);
+    }
+
+}

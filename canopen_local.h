@@ -6,6 +6,10 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <socket_usage.h>
+#include <exception.h>
+#include <exception>
+
+static void check_data_SDO(int);
 
 namespace CODT
 {
@@ -111,27 +115,46 @@ static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* 
         }
 
     }
-    catch(...)
+
+    catch(const std::exception& err)
     {
-    //ошибка доступа к памяти
+        throw err;
     }
 
     return can_frame;
 }
 
 static void send_SDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* data, std::uint8_t data_length=8,bool new_node_flag=false)
-{//желательно в пре-операционном режиме
+{
 
-    if(NN>=node_number::min_number && NN<=node_number::max_number){
+    if(NN>=node_number::min_number && NN<=node_number::max_number && NN!=0)
+    {
         if(new_node_flag)
             NN--;
-    can_frame sdo_frame=create_open_frame(code,NN,data,0x0,0x0,data_length);
+        can_frame sdo_frame;
+        try{
+            sdo_frame=create_open_frame(code,NN,data,0x0,0x0,data_length);
+        }
+        catch(const std::exception& err){
+            throw err;
+        }
         int nbytes=send(handle,&sdo_frame,sizeof(struct can_frame),0);
-    if(nbytes<0)
-        throw("Parameter isn't set. Make sure you to turn on a pre-operational mode and check node number!");
+        if(nbytes<0){
+            exception ex;
+            ex.code=send_sdo_error;
+            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
+            ex.is_fatal=false;
+            throw ex;
+        }
     }
     else
-        throw("Incorrect node number");
+    {
+        exception ex;
+        ex.code=node_error;
+        ex.description="Некорректный номер узла";
+        ex.is_fatal=false;
+        throw ex;
+    }
 }
 
 static can_frame recv_SDO_msg(int handle){
@@ -139,29 +162,43 @@ static can_frame recv_SDO_msg(int handle){
     int nbytes=0;
     while(nbytes==0)
         nbytes=recv(handle,&sdo_frame,sizeof(struct can_frame),0);
-    check_data(nbytes);
+    check_data_SDO(nbytes);
     return sdo_frame;
 }
 
 static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* data,int rtr_mask=0x40000000)
 {
-    if(NN>=node_number::min_number && NN<=node_number::max_number){
+    if(NN>=node_number::min_number && NN<=node_number::max_number && NN!=0)
+    {
         can_frame sdo_frame=create_open_frame(code,NN,data,rtr_mask,0x0);
         int nbytes=send(handle,&sdo_frame,sizeof(struct can_frame),0);
         if(nbytes<0)
-        throw("Обмен данными не выполнен");
+        {
+            exception ex;
+            ex.code=send_sdo_error;
+            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
+            ex.is_fatal=false;
+            throw ex;
+        }
     }
     else
-        throw("Incorrect node number");
+    {
+        exception ex;
+        ex.code=node_error;
+        ex.description="Некорректный номер узла";
+        ex.is_fatal=false;
+        throw ex;
+    }
 }
 
 static void recv_PDO_msg()
 {
-
+    //
 }
 
 static void send_rule_msg(int handle, func_codes code, CODT::cannode NN, uint8_t command_code){
-    if(NN>=node_number::min_number && NN<=node_number::max_number){
+    if(NN>=node_number::min_number && NN<=node_number::max_number && NN!=0)
+    {
         OpenData data;
         data.command=command_code;
         data.index=NN;
@@ -170,10 +207,41 @@ static void send_rule_msg(int handle, func_codes code, CODT::cannode NN, uint8_t
         can_frame rul_frame=create_open_frame(code,NN,&data,0x0,0x0,4);
         int nbytes=send(handle,&rul_frame,sizeof(struct can_frame),0);
         if(nbytes<0)
-            throw("Обмен данными не выполнен");
+        {
+            exception ex;
+            ex.code=send_sdo_error;
+            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
+            ex.is_fatal=false;
+            throw ex;
+        }
     }
     else
-        throw("Incorrect node number");
+    {
+        exception ex;
+        ex.code=node_error;
+        ex.description="Некорректный номер узла";
+        ex.is_fatal=false;
+        throw ex;
+    }
+}
+
+static void check_data_SDO(int nbytes){
+    if(nbytes<1){
+        exception ex;
+        ex.code=unknown;
+        ex.description="Ошибка при получении SDO объекта";
+        ex.is_fatal=false;
+        throw ex;
+    }
+
+    if(nbytes<sizeof(struct can_frame))
+    {
+        exception ex;
+        ex.code=incomplete_frame;
+        ex.description="Получен неполноценный фрейм данных";
+        ex.is_fatal=false;
+        throw ex;
+    }
 }
 
 

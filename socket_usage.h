@@ -7,6 +7,7 @@
 #include <net/if.h>
 #include <QString>
 #include <string>
+#include <exception.h>
 
 enum can_socket_type{
     RAW_SOCKET=0x1,
@@ -32,12 +33,22 @@ static int create_can_socket(can_socket_type sock_type){
         sockt.protocol=CAN_BCM;
         break;
     default:
-        throw("Error type");
+        exception ex;
+        ex.code=unknown;
+        ex.description="Unknown error while creating socket";
+        ex.is_fatal=true;
+        throw ex;
         break;
     }
     int handle=socket(sockt.domain,sockt.type,sockt.protocol);
     if(handle==-1)
-        throw("Socket is not created");
+    {
+        exception ex;
+        ex.code=socket_not_created;
+        ex.description="Unknown error while creating socket";
+        ex.is_fatal=true;
+        throw ex;
+    }
     else
         return handle;
 
@@ -62,16 +73,13 @@ static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_typ
     else
         addr.can_ifindex=0;
 
-    if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0)
-        throw("Socket can't be bind with can address family");
-
-}
-
-static void check_data(int nbytes){
-    if(nbytes<1)
-        throw "error";
-    if(nbytes<sizeof(struct can_frame))
-        throw "encomplete frame";
+    if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0){
+        exception ex;
+        ex.code=socket_not_binded;
+        ex.description="Socket can't be bind with can address family";
+        ex.is_fatal=true;
+        throw(ex);
+    }
 }
 
 #endif // SOCKET_USAGE_H
