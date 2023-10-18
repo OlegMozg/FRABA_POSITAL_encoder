@@ -83,6 +83,11 @@ static void find_low_and_high_byte(uint16_t val,BYTES& bytes){
     bytes.high=static_cast<uint8_t>((val&high_mask)>>8);
 }
 
+static uint16_t create_from_low_and_high_bite(uint8_t low_bite,uint8_t high_bite){
+    uint16_t value=((static_cast<uint16_t>(high_bite))<<8)|(static_cast<uint16_t>(low_bite));
+    return value;
+}
+
 static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* data,unsigned int rtr_mask, unsigned int eff_mask,std::uint8_t data_length=8)
 {
     COB_ID ID;
@@ -184,9 +189,14 @@ static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* 
     }
 }
 
-static void recv_PDO_msg(int handle)
+static can_frame recv_PDO_msg(int handle)
 {
-    //
+    struct can_frame pdo_frame;
+    int nbytes=0;
+    while(nbytes==0)
+        nbytes=recv(handle,&pdo_frame,sizeof(struct can_frame),0);
+    check_data_SDO(nbytes);
+    return pdo_frame;
 }
 
 static void send_rule_msg(int handle, func_codes code, CODT::cannode NN, uint8_t command_code){

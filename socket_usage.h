@@ -52,14 +52,17 @@ static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_typ
     struct sockaddr_can addr;
     struct ifreq ifr;
     int handle=0;
-    try{
+    try
+    {
         handle=create_can_socket(sock_type);
     }
-    catch(...){
-        bind_to_all=true;
+    catch(const exception& ex){
+        throw ex;
     }
     strcpy(ifr.ifr_name,if_name);
-    ioctl(handle,SIOCGIFINDEX,&ifr);
+    int state=ioctl(handle,SIOCGIFINDEX,&ifr);
+    //if(state<0)
+    //    bind_to_all=true;
     addr.can_family=AF_CAN;
 
     if(!bind_to_all)

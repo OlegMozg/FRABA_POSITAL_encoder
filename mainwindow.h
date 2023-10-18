@@ -86,5 +86,6 @@ private:
     void ask_for_password();
     QString executeSudoCommand(const QString& command);
     void reconfigure_interface(const QString& rate);
+    void display_positional_data(const can_frame&);
 };
 #endif // MAINWINDOW_H

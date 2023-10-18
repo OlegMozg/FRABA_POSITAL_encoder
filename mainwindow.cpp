@@ -36,6 +36,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_13->setFont(font);
     ui->label_14->setFont(font);
     ui->label_15->setFont(font);
+    ui->label_9->setFont(font);
+    ui->label_16->setFont(font);
+    ui->label_17->setFont(font);
+    ui->label_18->setFont(font);
     ui->radioButton->setFont(font);
     ui->radioButton_2->setFont(font);
     ui->radioButton_3->setFont(font);
@@ -66,15 +70,15 @@ MainWindow::MainWindow(QWidget *parent)
     ui->spinBox_2->setMinimum(encoder->min_node_num);
     ui->spinBox_2->setMaximum(encoder->max_node_num);
     ui->label_8->setText("Node number:");
-    ui->label_7->setText("");
+    ui->label_7->setText("NO INFO");
     ui->label_10->setText("Status:");
-    ui->label_11->setText("");
+    ui->label_11->setText("NO INFO");
     ui->pushButton_6->setText("Reset");
-    ui->pushButton_7->setText("start receiving/issue values");
+    ui->pushButton_7->setText("Start receiving/Issue values");
     ui->label_12->setText("Baudrate:");
-    ui->label_13->setText("");
+    ui->label_13->setText("NO INFO");
     ui->label_14->setText("Resolution:");
-    ui->label_15->setText("");
+    ui->label_15->setText("NO INFO");
     ui->groupBox_2->setTitle("Current values");
     ui->pushButton_4->setText("Apply");
     ui->groupBox_3->setTitle("Data transmission");
@@ -110,7 +114,7 @@ MainWindow::MainWindow(QWidget *parent)
     catch (const exception& ex)
     {
         qDebug()<<"Исключение с кодом "<<ex.code<<":"<<ex.description;
-        if(ex.is_fatal)
+            if(ex.is_fatal)
             exit(ex.code);
     }
     emit start_program(socket_handle);
@@ -246,6 +250,8 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
 
     uint32_t FC_MASK=0x00000780;
     uint32_t NN_MASK=0x7F;
+    try
+    {
     if((((boot_up_frame.can_id)&FC_MASK)==0x700) && boot_up_frame.len==1){
         encoder->node_num=(boot_up_frame.can_id)&NN_MASK;
         ui->label_7->setText(QString::number(encoder->node_num));
@@ -256,29 +262,24 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
         OpenData data;
         data.command=encoder->get_param;
         data.index=0x3001;
-        data.subindex=0x0;
+        data.subindex=0x00;
+        uint8_t len=4;
         data.SP_data_buff=nullptr;
         struct can_frame baud_frame;
-        try
-        {
-            send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&data,4);//хотим узнать скорость передачи
-            baud_frame=recv_SDO_msg(socket_handle);
-        }
-        catch(const exception& ex)
-        {
-            qDebug()<<"Попытка узнать скорость передачи от узла с номером:"<<encoder->node_num;
-            ex.standart_exception_info();
-            exit(ex.code);
-        }
-        catch(const std::exception& ex)
-        {
-            qDebug()<<ex.what();
-            exit(unknown);
-        }
+
+        send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->node_num,&data,len);//хотим узнать скорость передачи
+        baud_frame=recv_SDO_msg(socket_handle);
 
         if((((baud_frame.can_id)&FC_MASK)==func_codes::SDO_rx) && (baud_frame.data[0]==encoder->recv_param_u8)){
             encoder->boudrate=baud_frame.data[4];
-            ui->label_13->setText(QString::number(encoder->boudrate));
+            QString rate_to_screen="";
+            for(const auto& pair : rates){
+                if(pair.second==encoder->boudrate){
+                    rate_to_screen=pair.first;
+                    break;
+                }
+            }
+            ui->label_13->setText(rate_to_screen);
             qDebug()<<"Скорость по умолчанию установлена:"<<encoder->boudrate;
         }
         else
@@ -286,11 +287,51 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
             qDebug()<<"Ответ от датчика следующий при попытке узнать скорость:"<<"CAN-ID:"<<baud_frame.can_id<<"Код команды:"<<baud_frame.data[0];
             exit(unknown_frame);
         }
+        OpenData open_data;
+        open_data.command=encoder->get_param;
+        open_data.index=0x6000;
+        open_data.subindex=0x00;
+        len=4;
+        open_data.SP_data_buff=nullptr;
+        struct can_frame res_frame;
+
+        send_SDO_msg(socket_handle,func_codes::SDO_tx,encoder->max_node_num,&open_data,len);//хотим узнать разрешение выдачи угла поворота
+        res_frame=recv_SDO_msg(socket_handle);
+        if((((res_frame.can_id)&FC_MASK)==func_codes::SDO_rx) && (res_frame.data[0]==encoder->recv_param_u16)){
+            uint8_t resolution_low=res_frame.data[4];
+            uint8_t resolution_high=res_frame.data[5];
+            uint16_t hex_resolution=create_from_low_and_high_bite(resolution_low,resolution_high);
+            encoder->resolution=hex_resolution;
+            float res_to_screen=0.0;
+            for(const auto& pair : resolutions_dict){
+                if(pair.second==encoder->resolution){
+                    res_to_screen=pair.first;
+                    break;
+                }
+            }
+            ui->label_15->setText(QString::number(res_to_screen));
+        }
+        else{
+            qDebug()<<"Ответ от датчика следующий при попытке узнать разрешение выдачи:"<<"CAN-ID:"<<res_frame.can_id<<"Код команды:"<<res_frame.data[0];
+            exit(unknown_frame);
+        }
     }
     else
     {
         qDebug()<<"При попытке получить boot-up frame получено:"<<"CAN-ID"<<boot_up_frame.can_id<<"len:"<<boot_up_frame.len;
         exit(unknown_frame);
+    }
+    }
+    catch(const exception& ex)
+    {
+        qDebug()<<"Попытка узнать скорость передачи или разрешение выдачи от узла с номером:"<<encoder->node_num<<" провалена!";
+        ex.standart_exception_info();
+        exit(ex.code);
+    }
+    catch(const std::exception& ex)
+    {
+        qDebug()<<ex.what();
+        exit(unknown);
     }
 }
 
@@ -329,14 +370,22 @@ void MainWindow::on_pushButton_6_clicked()//reset encoder
 
 void MainWindow::on_pushButton_5_clicked()//сконфигурировать датчик с новыми настройками
 {
+    ui->pushButton_7->setEnabled(false);
+    if(encoder->status!=encoder->Pre_Operational){
+        QMessageBox msg;
+        msg.setText("Перейдите в режим Pre-Operational");
+        msg.exec();
+        return;
+    }
     ui->pushButton_5->setHidden(true);
     uint32_t FC_MASK=0x00000780;
     uint32_t NN_MASK=0x7F;
     //новые настройки можно применять только если они отличаются от старых
     double choosen_resolution;
+    QString baudrate_key;
     int value;
     int combo_index;
-    //1.node number
+    //1.node number (?)
     try
     {
     value=ui->spinBox_2->value();
@@ -366,7 +415,9 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     {
         OpenData open_data;
         CODT::canbyte data[1];
-        data[0]=rates[ui->comboBox->itemText(combo_index)];
+        baudrate_key=ui->comboBox->itemText(combo_index);
+        baudrate_key.remove(" Kbit/s");
+        data[0]=rates[baudrate_key];
         open_data.command=encoder->set_param;
         open_data.index=0x3001;
         open_data.subindex=0x00;
@@ -384,11 +435,12 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
     }
     //3.Resolution
     int combo_index_2=ui->comboBox_2->currentIndex();
-    choosen_resolution=(ui->comboBox_2->itemText(combo_index_2)).toDouble();
-    if(choosen_resolution!=ui->label_15->text().toDouble()){
+    choosen_resolution=(ui->comboBox_2->itemText(combo_index_2)).toFloat();
+    if(choosen_resolution!=ui->label_15->text().toFloat()){
         OpenData open_data;
         BYTES bytes;
-        find_low_and_high_byte(resolutions_dict[choosen_resolution],bytes);
+        uint16_t hex_resolution=resolutions_dict[choosen_resolution];
+        find_low_and_high_byte(hex_resolution,bytes);
         CODT::canbyte data[2];
         data[0]=bytes.low;
         data[1]=bytes.high;
@@ -509,9 +561,12 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
 
     if((((boot_frame.can_id)&FC_MASK)==0x700) && (((boot_frame.can_id)&NN_MASK)==value)){
         encoder->node_num=value;
+        ui->label_7->setText(QString::number(value));
         encoder->status=encoder->Pre_Operational;
-        encoder->resolution=choosen_resolution;
-        encoder->boudrate=rates[ui->comboBox->itemText(combo_index)];
+        encoder->boudrate=rates[baudrate_key];
+        ui->label_13->setText(baudrate_key);
+        encoder->resolution=resolutions_dict[choosen_resolution];
+        ui->label_15->setText(QString::number(choosen_resolution));
         qDebug()<<"boot-up frame получен и конфигурация завершена";
         emit status_pre_operational();
     }
@@ -521,6 +576,7 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
         exit(unknown_frame);
     }
     ui->pushButton_5->setHidden(false);//снова можно конфигурировать датчик
+    ui->pushButton_7->setEnabled(true);
 }
 
 void MainWindow::ask_for_password(){
@@ -555,7 +611,7 @@ QString MainWindow::executeSudoCommand(const QString& command){
     return output;
 }
 
-void MainWindow::reconfigure_interface(const QString& rate){
+void MainWindow::reconfigure_interface(const QString& rate){//сконфигурировать физический интерфейс
     QString command,out;
     command="ip link set can0 down";
     out=executeSudoCommand(command);
@@ -576,6 +632,7 @@ void MainWindow::reconfigure_interface(const QString& rate){
 
 void MainWindow::on_pushButton_4_clicked()//выбрать режим передачи сообщений
 {
+    ui->pushButton_7->setEnabled(false);
     uint32_t FC_MASK=0x00000780;
     uint32_t NN_MASK=0x7F;
     if(encoder->status!=encoder->Pre_Operational){
@@ -587,7 +644,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
 
     try
     {
-        if(ui->radioButton->isChecked()){//режим циклический                            //!!!ОБРАБОТАТЬ ИСКЛЮЧЕНИЯ
+        if(ui->radioButton->isChecked()){//режим циклический
 
             if(encoder->trans_mode!=encoder->Cyclic){
             //перейти в циклический
@@ -607,7 +664,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
                 if((((mode_frame.can_id)& FC_MASK)!=func_codes::SDO_rx) || mode_frame.data[0]!=encoder->set_param_confirm){
                     qDebug()<<"Циклический режим не настроен"<<"CAN_ID:"<<mode_frame.can_id<<"Код команды:"<<mode_frame.data[0];
                     return;
-                 }
+                }
             }
             uint16_t cycle_time=static_cast<uint16_t>(ui->spinBox->value());
             BYTES bytes;
@@ -638,6 +695,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
             msg.setText("Даннаый режим пока не поддерживается");
             msg.exec();
             return;
+            encoder->trans_mode=encoder->Syncronius;
         }
 
         else if(ui->radioButton_3->isChecked()){//режим по запросу
@@ -645,7 +703,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
                     //перейти в этот режим
                     OpenData open_data;
                     open_data.command=encoder->set_param;
-                    open_data.index=0x1800;
+                    open_data.index=0x1800;//or 0x1801
                     open_data.subindex=0x01;//or 0x02
                     uint8_t len=4;
                      open_data.SP_data_buff=nullptr;
@@ -679,10 +737,11 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
         qDebug()<<ex.what();
         exit(unknown);
     }
+    ui->pushButton_7->setEnabled(true);
 }
 
 
-void MainWindow::on_pushButton_7_clicked()                //ОБРАБОТАТЬ ИСКЛЮЧЕНИЯ!!!
+void MainWindow::on_pushButton_7_clicked()//начать циклический прием сообщений или выдать 1 сообщение
 {
     uint32_t FC_MASK=0x00000780;
     uint32_t NN_MASK=0x7F;
@@ -692,20 +751,87 @@ void MainWindow::on_pushButton_7_clicked()                //ОБРАБОТАТЬ
         msg.exec();
         return;
     }
-    if(encoder->transmit_mode==encoder->Cyclic){
+    try
+    {
+        if(encoder->transmit_mode==encoder->Cyclic)
+        {
+            ui->pushButton_4->setHidden(true);
+            ui->pushButton_5->setHidden(true);
+            ui->pushButton_7->setText("Stop cyclic transmission");
+            struct can_frame positional_frame;
+            while(true){
+                positional_frame=recv_PDO_msg(socket_handle);
+                if((((positional_frame.can_id)&FC_MASK)==func_codes::PDO_rx) && (((positional_frame.can_id)&NN_MASK)==encoder->node_num))
+                    display_positional_data(positional_frame);
 
-    }
-    else if(encoder->transmit_mode==encoder->Syncronius){
-        return;//пока не поддерживается
-    }
-    else if(encoder->transmit_mode==encoder->Polled){
-        OpenData* data=nullptr;
-        send_PDO_msg(socket_handle,func_codes::PDO_tx,encoder->node_num,data);
-        struct can_frame positional_frame;
-        recv_PDO_msg(socket_handle);
-        if((((positional_frame.can_id)&FC_MASK)==func_codes::PDO_rx) && (((positional_frame.can_id)&NN_MASK)==encoder->node_num)){
-            //получаем позиционные значения
+                else{
+                    qDebug()<<"Ошибка циклического приема"<<", получено CAN_ID:"<<positional_frame.can_id<<" Код команды:"<<positional_frame.data[0];
+                    QMessageBox msg;
+                    msg.setText("Циклический прием остановлен");
+                    msg.exec();
+                    ui->pushButton_7->setText("Start receiving/Issue values");
+                    break;
+                }
+
+            }
+        }
+        else if(encoder->transmit_mode==encoder->Syncronius)
+        {//пока не поддерживается и надо ли вообще
+            return;
+        }
+        else if(encoder->transmit_mode==encoder->Polled){
+            OpenData* data=nullptr;
+            send_PDO_msg(socket_handle,func_codes::PDO_tx,encoder->node_num,data);
+            struct can_frame positional_frame;
+            positional_frame=recv_PDO_msg(socket_handle);
+            if((((positional_frame.can_id)&FC_MASK)==func_codes::PDO_rx) && (((positional_frame.can_id)&NN_MASK)==encoder->node_num))
+                display_positional_data(positional_frame);
+
+            else{
+                QMessageBox msg;
+                msg.setText("Позиционные значения не получены");
+                msg.exec();
+                qDebug()<<"Ответ от датчика:"<<"CAN_ID:"<<positional_frame.can_id<<"Код команды:"<<positional_frame.data[0];
+                return;
+            }
         }
     }
+    catch(const exception& ex)
+    {
+        ex.standart_exception_info();
+        if(ex.is_fatal)
+            exit(ex.code);
+    }
+    catch(const std::exception& ex)
+    {
+        qDebug()<<ex.what();
+        exit(unknown);
+    }
+    if(ui->pushButton_4->isHidden())
+        ui->pushButton_4->setHidden(false);
+    if(ui->pushButton_5->isHidden())
+        ui->pushButton_5->setHidden(false);
 }
 
+void MainWindow::display_positional_data(const can_frame& positional_frame){
+    //ВАРИАНТ_1:ЕСЛИ ДАТЧИК ПЕРЕДАЕТ МЛАДШИЕ И СТАРШИЕ БИТЫ ЧИСЛА С ПЛАВАЮЩЕЙ ТОЧКОЙ
+    //           unsigned char bytes[]={positional_frame.data[0],positional_frame.data[1]};
+    //           double angle=*(double*)bytes;
+    //           ui->label_17->setText(QString::number(angle)+QChar(176));
+    //ВАРИАНТ_2:ЕСЛИ ДАТЧИК ПЕРЕДАЕТ ЦЕЛУЮ И ДРОБНУЮ ЧАСТЬ ЧИСЛА
+    //               uint8_t integer_part=positional_frame.data[0];
+    //               uint8_t fractional_part=positional_frame.data[1];
+    //               ui->label_17->setText(QString::number(integer_part)+"."+QString::number(fractional_part));
+
+    //ВАРИАНТ_3:ЕСЛИ ДАТЧИК ПЕРЕДАЕТ ДАННЫЕ В ВИДЕ СТАРШЕГО И МЛАДШЕГО БАЙТА ЦЕЛОГО ЧИСЛА ЭКВИВАЛЛЕНТНОГО ДРОБНОМУ С УЧЕТОМ ЗАДАННОЙ ТОЧНОСТИ
+    uint8_t low_angle=positional_frame.data[0];
+    uint8_t high_angle=positional_frame.data[1];
+    uint16_t current_angle=create_from_low_and_high_bite(low_angle,high_angle);
+    float angle_deg=current_angle*(ui->label_15->text().toFloat());
+    ui->label_17->setText(QString::number(angle_deg)+QChar(176));
+
+    uint8_t low_revolutions=positional_frame.data[2];
+    uint8_t high_revolutions=positional_frame.data[3];
+    uint16_t current_revolutions=create_from_low_and_high_bite(low_revolutions,high_revolutions);
+    ui->label_18->setText(QString::number(current_revolutions));
+}
