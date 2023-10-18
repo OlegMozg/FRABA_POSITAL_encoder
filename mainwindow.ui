@@ -33,7 +33,7 @@
       <x>10</x>
       <y>60</y>
       <width>421</width>
-      <height>141</height>
+      <height>161</height>
      </rect>
     </property>
     <property name="title">
@@ -111,10 +111,10 @@
     <widget class="QPushButton" name="pushButton_5">
      <property name="geometry">
       <rect>
-       <x>180</x>
-       <y>110</y>
+       <x>150</x>
+       <y>120</y>
        <width>161</width>
-       <height>25</height>
+       <height>21</height>
       </rect>
      </property>
      <property name="text">
@@ -179,7 +179,7 @@
      <rect>
       <x>460</x>
       <y>60</y>
-      <width>241</width>
+      <width>281</width>
       <height>161</height>
      </rect>
     </property>
@@ -191,7 +191,7 @@
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>111</width>
+       <width>141</width>
        <height>31</height>
       </rect>
      </property>
@@ -202,7 +202,7 @@
     <widget class="QLabel" name="label_7">
      <property name="geometry">
       <rect>
-       <x>120</x>
+       <x>150</x>
        <y>30</y>
        <width>111</width>
        <height>31</height>
@@ -217,7 +217,7 @@
       <rect>
        <x>10</x>
        <y>60</y>
-       <width>111</width>
+       <width>141</width>
        <height>31</height>
       </rect>
      </property>
@@ -228,7 +228,7 @@
     <widget class="QLabel" name="label_11">
      <property name="geometry">
       <rect>
-       <x>120</x>
+       <x>150</x>
        <y>60</y>
        <width>111</width>
        <height>31</height>
@@ -243,7 +243,7 @@
       <rect>
        <x>10</x>
        <y>90</y>
-       <width>111</width>
+       <width>141</width>
        <height>31</height>
       </rect>
      </property>
@@ -256,7 +256,7 @@
       <rect>
        <x>10</x>
        <y>120</y>
-       <width>111</width>
+       <width>141</width>
        <height>31</height>
       </rect>
      </property>
@@ -267,7 +267,7 @@
     <widget class="QLabel" name="label_13">
      <property name="geometry">
       <rect>
-       <x>120</x>
+       <x>150</x>
        <y>90</y>
        <width>111</width>
        <height>31</height>
@@ -280,7 +280,7 @@
     <widget class="QLabel" name="label_15">
      <property name="geometry">
       <rect>
-       <x>120</x>
+       <x>150</x>
        <y>120</y>
        <width>111</width>
        <height>31</height>
@@ -296,7 +296,7 @@
      <rect>
       <x>10</x>
       <y>260</y>
-      <width>701</width>
+      <width>731</width>
       <height>191</height>
      </rect>
     </property>
@@ -389,6 +389,71 @@
      </property>
      <property name="text">
       <string>PushButton</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_7">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>30</y>
+       <width>411</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>PushButton</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_9">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>70</y>
+       <width>231</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>TextLabel</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_16">
+     <property name="geometry">
+      <rect>
+       <x>530</x>
+       <y>70</y>
+       <width>181</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>TextLabel</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_17">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>100</y>
+       <width>231</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>TextLabel</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_18">
+     <property name="geometry">
+      <rect>
+       <x>530</x>
+       <y>100</y>
+       <width>181</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>TextLabel</string>
      </property>
     </widget>
    </widget>

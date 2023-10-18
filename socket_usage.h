@@ -33,20 +33,14 @@ static int create_can_socket(can_socket_type sock_type){
         sockt.protocol=CAN_BCM;
         break;
     default:
-        exception ex;
-        ex.code=unknown;
-        ex.description="Unknown error while creating socket";
-        ex.is_fatal=true;
+        exception ex(unknown,"Unknown error while creating socket",true);
         throw ex;
         break;
     }
     int handle=socket(sockt.domain,sockt.type,sockt.protocol);
     if(handle==-1)
     {
-        exception ex;
-        ex.code=socket_not_created;
-        ex.description="Unknown error while creating socket";
-        ex.is_fatal=true;
+        exception ex(socket_not_created,"Unknown error while creating socket",true);
         throw ex;
     }
     else
@@ -74,10 +68,7 @@ static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_typ
         addr.can_ifindex=0;
 
     if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0){
-        exception ex;
-        ex.code=socket_not_binded;
-        ex.description="Socket can't be bind with can address family";
-        ex.is_fatal=true;
+        exception ex(socket_not_binded,"Socket can't be bind with can address family",true);
         throw(ex);
     }
 }

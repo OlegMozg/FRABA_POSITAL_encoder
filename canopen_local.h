@@ -90,6 +90,11 @@ static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* 
     ID.NN=NN;
     canid_t can_id=construct_can_id(ID,rtr_mask,eff_mask);
     struct can_frame can_frame;
+    if(data==nullptr){
+        can_frame.len=0;
+        can_frame.can_id=can_id;
+        return can_frame;
+    }
     can_frame.can_id=can_id;
     can_frame.len=8;
     can_frame.data[0]=data->command;
@@ -111,7 +116,7 @@ static can_frame create_open_frame(func_codes code, CODT::cannode NN, OpenData* 
                 addr++;
             }
             else
-                can_frame.data[i]=0;
+                can_frame.data[i]=0x00;
         }
 
     }
@@ -140,19 +145,13 @@ static void send_SDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* 
         }
         int nbytes=send(handle,&sdo_frame,sizeof(struct can_frame),0);
         if(nbytes<0){
-            exception ex;
-            ex.code=send_sdo_error;
-            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
-            ex.is_fatal=false;
+            exception ex(send_sdo_error,"Объект SDO не передан на узел! Проверьте номер узла и другие настройки",false);
             throw ex;
         }
     }
     else
     {
-        exception ex;
-        ex.code=node_error;
-        ex.description="Некорректный номер узла";
-        ex.is_fatal=false;
+        exception ex(node_error,"Некорректный номер узла",false);
         throw ex;
     }
 }
@@ -170,28 +169,22 @@ static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* 
 {
     if(NN>=node_number::min_number && NN<=node_number::max_number && NN!=0)
     {
-        can_frame sdo_frame=create_open_frame(code,NN,data,rtr_mask,0x0);
-        int nbytes=send(handle,&sdo_frame,sizeof(struct can_frame),0);
+        can_frame pdo_frame=create_open_frame(code,NN,data,rtr_mask,0x0);
+        int nbytes=send(handle,&pdo_frame,sizeof(struct can_frame),0);
         if(nbytes<0)
         {
-            exception ex;
-            ex.code=send_sdo_error;
-            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
-            ex.is_fatal=false;
+            exception ex(send_pdo_error,"Объект PDO не передан на узел! Проверьте номер узла и другие настройки",false);
             throw ex;
         }
     }
     else
     {
-        exception ex;
-        ex.code=node_error;
-        ex.description="Некорректный номер узла";
-        ex.is_fatal=false;
+        exception ex(node_error,"Некорректный номер узла",false);
         throw ex;
     }
 }
 
-static void recv_PDO_msg()
+static void recv_PDO_msg(int handle)
 {
     //
 }
@@ -208,38 +201,26 @@ static void send_rule_msg(int handle, func_codes code, CODT::cannode NN, uint8_t
         int nbytes=send(handle,&rul_frame,sizeof(struct can_frame),0);
         if(nbytes<0)
         {
-            exception ex;
-            ex.code=send_sdo_error;
-            ex.description="Объект SDO не передан на узел! Проверьте номер узла и другие настройки";
-            ex.is_fatal=false;
+            exception ex(send_sdo_error,"Объект SDO не передан на узел! Проверьте номер узла и другие настройки",false);
             throw ex;
         }
     }
     else
     {
-        exception ex;
-        ex.code=node_error;
-        ex.description="Некорректный номер узла";
-        ex.is_fatal=false;
+        exception ex(node_error,"Некорректный номер узла",false);
         throw ex;
     }
 }
 
 static void check_data_SDO(int nbytes){
     if(nbytes<1){
-        exception ex;
-        ex.code=unknown;
-        ex.description="Ошибка при получении SDO объекта";
-        ex.is_fatal=false;
+        exception ex(unknown,"Ошибка при получении SDO объекта",false);
         throw ex;
     }
 
     if(nbytes<sizeof(struct can_frame))
     {
-        exception ex;
-        ex.code=incomplete_frame;
-        ex.description="Получен неполноценный фрейм данных";
-        ex.is_fatal=false;
+        exception ex(incomplete_frame,"Получен неполноценный фрейм данных",false);
         throw ex;
     }
 }
