@@ -3,6 +3,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/can.h>
+#include <linux/can/raw.h>
+#include <linux/can/bcm.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <QString>
@@ -33,14 +35,14 @@ static int create_can_socket(can_socket_type sock_type){
         sockt.protocol=CAN_BCM;
         break;
     default:
-        exception ex(unknown,"Unknown error while creating socket",true);
+        exception ex(unknown,"Тип сокета не соответствует протоколу передачи данных",true);
         throw ex;
         break;
     }
     int handle=socket(sockt.domain,sockt.type,sockt.protocol);
     if(handle==-1)
     {
-        exception ex(socket_not_created,"Unknown error while creating socket",true);
+        exception ex(socket_not_created,"Сформировать сокет не удалось",true);
         throw ex;
     }
     else
@@ -59,6 +61,11 @@ static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_typ
     catch(const exception& ex){
         throw ex;
     }
+    if(sock_type==can_socket_type::RAW_SOCKET){
+        int loopback=0;
+        setsockopt(handle,SOL_CAN_RAW,CAN_RAW_LOOPBACK,&loopback,sizeof(loopback));
+    }
+
     strcpy(ifr.ifr_name,if_name);
     int state=ioctl(handle,SIOCGIFINDEX,&ifr);
     //if(state<0)
@@ -71,9 +78,10 @@ static void bind_can_sock_with_ifs(const char* if_name, can_socket_type sock_typ
         addr.can_ifindex=0;
 
     if(bind(handle, (sockaddr*) &addr,sizeof(addr))<0){
-        exception ex(socket_not_binded,"Socket can't be bind with can address family",true);
+        exception ex(socket_not_binded,"Сокет не может быть ассоциирован с семейством адресов CAN",true);
         throw(ex);
     }
+
 }
 
 #endif // SOCKET_USAGE_H

@@ -10,6 +10,7 @@
 #include <exception>
 
 static void check_data_SDO(int);
+static void check_data_PDO(int);
 
 namespace CODT
 {
@@ -166,7 +167,14 @@ static can_frame recv_SDO_msg(int handle){
     int nbytes=0;
     while(nbytes==0)
         nbytes=recv(handle,&sdo_frame,sizeof(struct can_frame),0);
-    check_data_SDO(nbytes);
+
+    if(sdo_frame.can_id & CAN_ERR_FLAG){
+        int error=sdo_frame.can_id & CAN_ERR_MASK;
+        exception ex(error,"Получен ERROR FRAME",true);
+        throw ex;
+    }
+    else
+         check_data_SDO(nbytes);
     return sdo_frame;
 }
 
@@ -195,7 +203,13 @@ static can_frame recv_PDO_msg(int handle)
     int nbytes=0;
     while(nbytes==0)
         nbytes=recv(handle,&pdo_frame,sizeof(struct can_frame),0);
-    check_data_SDO(nbytes);
+    if(pdo_frame.can_id & CAN_ERR_FLAG){
+        int error=pdo_frame.can_id & CAN_ERR_MASK;
+        exception ex(error,"Получен ERROR FRAME",true);
+        throw ex;
+    }
+    else
+        check_data_PDO(nbytes);
     return pdo_frame;
 }
 
@@ -235,5 +249,17 @@ static void check_data_SDO(int nbytes){
     }
 }
 
+static void check_data_PDO(int nbytes){
+    if(nbytes<1){
+        exception ex(unknown,"Ошибка при получении PDO объекта",false);
+        throw ex;
+    }
+
+    if(nbytes<sizeof(struct can_frame))
+    {
+        exception ex(incomplete_frame,"Получен неполноценный фрейм данных",false);
+        throw ex;
+    }
+}
 
 #endif // CANOPEN_LOCAL_H

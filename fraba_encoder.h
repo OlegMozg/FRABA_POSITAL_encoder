@@ -26,13 +26,11 @@ struct fraba_posital_encoder
     uint8_t node_num              :7;
     uint8_t min_node_num;
     uint8_t max_node_num;
-    uint8_t work_mode;
-    uint8_t trans_mode;
     uint8_t min_cycle_time;
     uint16_t max_cycle_time;
     uint16_t cycle_time_value;
     uint16_t resolution;
-    uint8_t boudrate              :4;
+    uint8_t baudrate              :4;
     QString default_rate;
     uint8_t status                :2;
     uint8_t transmit_mode         :2;
@@ -47,8 +45,6 @@ struct fraba_posital_encoder
         max_node_num=node_number::max_number;
         min_cycle_time=period_settings::MIN_period;
         max_cycle_time=period_settings::MAX_period;
-        //node_num
-        //boudrate
         status=Work_Mode::Stopped;
         transmit_mode=Transmission_Mode::Cyclic;
     }

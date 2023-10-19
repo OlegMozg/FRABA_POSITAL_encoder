@@ -118,7 +118,6 @@ MainWindow::MainWindow(QWidget *parent)
             exit(ex.code);
     }
     emit start_program(socket_handle);
-
 }
 
 MainWindow::~MainWindow()//деструктор окна
@@ -271,16 +270,16 @@ void MainWindow::program_run(int handle)//пытаемся получить boot
         baud_frame=recv_SDO_msg(socket_handle);
 
         if((((baud_frame.can_id)&FC_MASK)==func_codes::SDO_rx) && (baud_frame.data[0]==encoder->recv_param_u8)){
-            encoder->boudrate=baud_frame.data[4];
+            encoder->baudrate=baud_frame.data[4];
             QString rate_to_screen="";
             for(const auto& pair : rates){
-                if(pair.second==encoder->boudrate){
+                if(pair.second==encoder->baudrate){
                     rate_to_screen=pair.first;
                     break;
                 }
             }
             ui->label_13->setText(rate_to_screen);
-            qDebug()<<"Скорость по умолчанию установлена:"<<encoder->boudrate;
+            qDebug()<<"Скорость по умолчанию установлена:"<<encoder->baudrate;
         }
         else
         {
@@ -563,7 +562,7 @@ void MainWindow::on_pushButton_5_clicked()//сконфигурировать д�
         encoder->node_num=value;
         ui->label_7->setText(QString::number(value));
         encoder->status=encoder->Pre_Operational;
-        encoder->boudrate=rates[baudrate_key];
+        encoder->baudrate=rates[baudrate_key];
         ui->label_13->setText(baudrate_key);
         encoder->resolution=resolutions_dict[choosen_resolution];
         ui->label_15->setText(QString::number(choosen_resolution));
@@ -618,7 +617,7 @@ void MainWindow::reconfigure_interface(const QString& rate){//сконфигур
     if(out.contains("cannot find device",Qt::CaseInsensitive))
     {
         exception ex(if_not_found,"CAN-устройство не обнаружено",true);
-        throw(ex);
+        throw ex;
     }
 
     command="ip link set can0 up type can bitrate "+rate+" loopback off";
@@ -626,7 +625,7 @@ void MainWindow::reconfigure_interface(const QString& rate){//сконфигур
     if(out.contains("cannot find device",Qt::CaseInsensitive))
     {
         exception ex(if_not_found,"CAN-устройство не обнаружено",true);
-        throw(ex);
+        throw ex;
     }
 }
 
@@ -646,7 +645,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
     {
         if(ui->radioButton->isChecked()){//режим циклический
 
-            if(encoder->trans_mode!=encoder->Cyclic){
+            if(encoder->transmit_mode!=encoder->Cyclic){
             //перейти в циклический
                 OpenData open_data;
                 open_data.command=encoder->set_param;
@@ -686,20 +685,20 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
                qDebug()<<"Параметр времени цикла не настроен"<<"CAN_ID:"<<cycle_frame.can_id<<"Код команды:"<<cycle_frame.data[0];
                return;
             }
-            encoder->trans_mode=encoder->Cyclic;
+            encoder->transmit_mode=encoder->Cyclic;
             return;
         }
 
         else if(ui->radioButton_2->isChecked()){//пока без режима SYNC
             QMessageBox msg;
-            msg.setText("Даннаый режим пока не поддерживается");
+            msg.setText("Данный режим пока не поддерживается");
             msg.exec();
             return;
-            encoder->trans_mode=encoder->Syncronius;
+            encoder->transmit_mode=encoder->Syncronius;
         }
 
         else if(ui->radioButton_3->isChecked()){//режим по запросу
-                if(encoder->trans_mode!=encoder->Polled){
+                if(encoder->transmit_mode!=encoder->Polled){
                     //перейти в этот режим
                     OpenData open_data;
                     open_data.command=encoder->set_param;
@@ -716,7 +715,7 @@ void MainWindow::on_pushButton_4_clicked()//выбрать режим перед
                         return;
                     }
                 }
-            encoder->trans_mode=encoder->Polled;
+            encoder->transmit_mode=encoder->Polled;
             return;
         }
         else{
@@ -751,15 +750,22 @@ void MainWindow::on_pushButton_7_clicked()//начать циклический 
         msg.exec();
         return;
     }
+    static char cyclic_run=1;
+
     try
     {
         if(encoder->transmit_mode==encoder->Cyclic)
         {
-            ui->pushButton_4->setHidden(true);
-            ui->pushButton_5->setHidden(true);
-            ui->pushButton_7->setText("Stop cyclic transmission");
+            cyclic_run++;
+            if(ui->pushButton_4->isHidden()==false)
+                ui->pushButton_4->setHidden(true);
+            if(ui->pushButton_5->isHidden()==false)
+                ui->pushButton_5->setHidden(true);
+            if(cyclic_run%2==0)
+                ui->pushButton_7->setText("Stop cyclic transmission");
             struct can_frame positional_frame;
-            while(true){
+            while(cyclic_run%2==0){
+                    //остановка через static переменную!
                 positional_frame=recv_PDO_msg(socket_handle);
                 if((((positional_frame.can_id)&FC_MASK)==func_codes::PDO_rx) && (((positional_frame.can_id)&NN_MASK)==encoder->node_num))
                     display_positional_data(positional_frame);
@@ -769,11 +775,10 @@ void MainWindow::on_pushButton_7_clicked()//начать циклический 
                     QMessageBox msg;
                     msg.setText("Циклический прием остановлен");
                     msg.exec();
-                    ui->pushButton_7->setText("Start receiving/Issue values");
                     break;
                 }
-
             }
+            ui->pushButton_7->setText("Start receiving/Issue values");
         }
         else if(encoder->transmit_mode==encoder->Syncronius)
         {//пока не поддерживается и надо ли вообще
@@ -798,6 +803,7 @@ void MainWindow::on_pushButton_7_clicked()//начать циклический 
     }
     catch(const exception& ex)
     {
+        ui->pushButton_7->setText("Start receiving/Issue values");
         ex.standart_exception_info();
         if(ex.is_fatal)
             exit(ex.code);
@@ -813,7 +819,7 @@ void MainWindow::on_pushButton_7_clicked()//начать циклический 
         ui->pushButton_5->setHidden(false);
 }
 
-void MainWindow::display_positional_data(const can_frame& positional_frame){
+void MainWindow::display_positional_data(const can_frame& positional_frame){//отобразить угол поворота и число оборотов на экране
     //ВАРИАНТ_1:ЕСЛИ ДАТЧИК ПЕРЕДАЕТ МЛАДШИЕ И СТАРШИЕ БИТЫ ЧИСЛА С ПЛАВАЮЩЕЙ ТОЧКОЙ
     //           unsigned char bytes[]={positional_frame.data[0],positional_frame.data[1]};
     //           double angle=*(double*)bytes;
