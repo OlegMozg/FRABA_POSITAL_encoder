@@ -606,8 +606,8 @@ QString MainWindow::executeSudoCommand(const QString& command){
     process.write(password.toUtf8());
     process.closeWriteChannel();
     process.waitForFinished();
-    QString output=process.readAll();
-    return output;
+    QString out=process.readAll();
+    return out;
 }
 
 void MainWindow::reconfigure_interface(const QString& rate){//сконфигурировать физический интерфейс

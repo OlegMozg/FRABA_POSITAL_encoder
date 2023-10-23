@@ -178,7 +178,7 @@ static can_frame recv_SDO_msg(int handle){
     return sdo_frame;
 }
 
-static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* data,int rtr_mask=0x40000000)
+static void send_PDO_msg(int handle,func_codes code,CODT::cannode NN, OpenData* data,int rtr_mask=CAN_RTR_FLAG)
 {
     if(NN>=node_number::min_number && NN<=node_number::max_number && NN!=0)
     {
@@ -221,7 +221,8 @@ static void send_rule_msg(int handle, func_codes code, CODT::cannode NN, uint8_t
         data.index=NN;
         data.subindex=0x0;
         data.SP_data_buff=nullptr;
-        can_frame rul_frame=create_open_frame(code,NN,&data,0x0,0x0,4);
+        uint8_t len=4;
+        can_frame rul_frame=create_open_frame(code,0x0,&data,0x0,0x0,len);
         int nbytes=send(handle,&rul_frame,sizeof(struct can_frame),0);
         if(nbytes<0)
         {

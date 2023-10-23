@@ -10,17 +10,6 @@
 typedef std::map<std::uint16_t,std::uint8_t> can_rates;
 
 
-struct SDO_telegram
-{
-    uint8_t status                :1;
-    uint32_t abort_code;
-};
-
-struct PDO_telegram
-{
-    //???
-};
-
 struct fraba_posital_encoder
 {
     uint8_t node_num              :7;
@@ -34,10 +23,6 @@ struct fraba_posital_encoder
     QString default_rate;
     uint8_t status                :2;
     uint8_t transmit_mode         :2;
-
-
-    SDO_telegram sdo;
-    PDO_telegram pdo;
 
     fraba_posital_encoder(){
         default_rate="20000";
